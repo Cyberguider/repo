@@ -1,0 +1,31 @@
+# Define your targets and ports
+$Target = "192.168.1.1"
+$Ports = 21, 22, 80, 443, 445, 3389
+$TimeoutMs = 100
+
+foreach ($Port in $Ports) {
+    $TcpClient = New-Object System.Net.Sockets.TcpClient
+    
+    # Begin an asynchronous connection attempt
+    $AsyncResult = $TcpClient.BeginConnect($Target, $Port, $null, $null)
+    $WaitHandle = $AsyncResult.AsyncWaitHandle
+    
+    # Wait for the connection or timeout
+    if (-not $WaitHandle.WaitOne($TimeoutMs, $false)) {
+        # Timeout means the port is likely closed or filtered
+        $TcpClient.Close()
+    } else {
+        try {
+            $TcpClient.EndConnect($AsyncResult)
+            [PSCustomObject]@{
+                Target = $Target
+                Port   = $Port
+                Status = "Open"
+            }
+        } catch {
+            # Connection refused
+        } finally {
+            $TcpClient.Close()
+        }
+    }
+}
